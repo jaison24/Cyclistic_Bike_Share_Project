@@ -1,0 +1,453 @@
+---
+title: "Cyclistic Data Analysis"
+author: "Jaison Jacob J"
+date: "04-03-2022"
+output: html_notebook
+editor_options:
+  chunk_output_type: inline
+---
+
+### **Introduction**
+
+This case study is a part of Google data analytics professional certificate.This notebook analyses the cyclistic case study using the six phases of analysis as follows:
+
+1.  Ask
+2.  Prepare
+3.  Process
+4.  Analyze
+5.  Share
+6.  Act
+
+### **Ask**
+
+#### **Problem Statement** :
+
+Cyclistic is a bike share company in Chicago, USA. It has more than 5800 bicycles across more than 600 docking stations. Cyclistic has two types of customers - Casual riders who use single day passes and Cyclistic members who buy annual memberships. Cyclistic's marketing team believes that cyclistic members are more profitable than the casual riders and so they want to design marketing strategies to convert casual riders to cyclistic members. The primary goal is to determine how these two types of users differ and how they use cyclistic service.
+
+#### **Goal of the analysis** :
+
+Analyze how casual riders and Cyclistic members differ in their way of using the services of Cyclistic using the historical trip data of Cyclistic and recommend suggestions to design marketing strategies to solve the problem.
+
+#### **Stakeholders** :
+
+The analysis will be submitted to Lily Moreno, the director of marketing at Cyclistic.
+
+#### **Data License** :
+
+The data used for this analysis has been made available by Motivate International Inc. under this [license](https://ride.divvybikes.com/data-license-agreement)
+
+### **Prepare**
+
+#### **Data usage and organization** :
+
+The data used for the analysis was the Cyclistic historical trip data during the whole year of 2022. The zip files which contained the csv files of each month's data from 2022 were downloaded and extracted and organized in a separate folder in the personal computer. All the csv files were uploaded to the Google sheets.
+
+### **Process**
+
+#### **Data Cleaning (First Stage)**:
+
+Google Sheets were used for the first stage of data cleaning. The steps used in data cleaning are mentioned below :
+
+1)  Each csv file contains ride data of each month. All these csv files have 13 columns. The first column _ride_id_ was checked for duplicates and no duplicates were found.
+
+2)  Extra spaces were trimmed in all the columns.
+
+3)  The _started_at_ column which denotes the starting time of the ride cannot be greater than the _ended_at_ time which denotes the ending time of the ride. So a spreadsheet formula was used to identify and remove the rows where start time is greater than the end time
+
+                               =IF(C2<=D2,"CORRECT","WRONG")
+
+4)  A new column named _weekday_ was created next to the _started_at_ column which specifies the name of that week day using the spreadsheet formula
+
+                   =CHOOSE(WEEKDAY(C2),"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday")
+
+5)  A new column named _ride_length_ was created which denotes the trip duration of each ride in HH:MM:SS format using the spreadsheet formula
+
+                               =E2-C2
+
+After the data cleaning process, each csv file has 15 columns, including the original 13 columns and the 2 newly created columns.
+
+#### **Data Cleaning(Second Stage)**
+
+After the initial basic data cleaning using spreadsheets, the data is loaded to R for the next stage of data cleaning.
+
+The required libraries and packages for cleaning and analysis are loaded
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+```
+
+------------------------------------------------------------------------
+
+The current working directory is checked and the working directory is set to the path where the csv files are saved.
+
+```{r}
+getwd()
+setwd("C:/Users/ASUS/OneDrive/Documents/Cyclistic Case Study")
+```
+
+------------------------------------------------------------------------
+
+All the csv files are read as separate data frames.
+
+```{r}
+Jan_2022 <- read.csv("202201-divvy-tripdata.csv")
+Feb_2022 <- read.csv("202202-divvy-tripdata.csv")
+Mar_2022 <- read.csv("202203-divvy-tripdata.csv")
+Apr_2022 <- read.csv("202204-divvy-tripdata.csv")
+May_2022 <- read.csv("202205-divvy-tripdata.csv")
+Jun_2022 <- read.csv("202206-divvy-tripdata.csv")
+Jul_2022 <- read.csv("202207-divvy-tripdata.csv")
+Aug_2022 <- read.csv("202208-divvy-tripdata.csv")
+Sep_2022 <- read.csv("202209-divvy-tripdata.csv")
+Oct_2022 <- read.csv("202210-divvy-tripdata.csv")
+Nov_2022 <- read.csv("202211-divvy-tripdata.csv")
+Dec_2022 <- read.csv("202212-divvy-tripdata.csv")
+```
+
+------------------------------------------------------------------------
+
+The column names of each data frame is checked so that all the data frames has the same number of columns with the same names.
+
+```{r}
+colnames(Jan_2022)
+colnames(Feb_2022)
+colnames(Mar_2022)
+colnames(Apr_2022)
+colnames(May_2022)
+colnames(Jun_2022)
+colnames(Jul_2022)
+colnames(Aug_2022)
+colnames(Sep_2022)
+colnames(Oct_2022)
+colnames(Nov_2022)
+colnames(Dec_2022)
+```
+
+------------------------------------------------------------------------
+
+All the individual data frames are merged into a single large data frame.
+
+```{r}
+Year_2022 <- bind_rows(Jan_2022,Feb_2022,Mar_2022,Apr_2022,May_2022,Jun_2022,Jul_2022,Aug_2022,Sep_2022,Oct_2022,Nov_2022,Dec_2022)
+```
+
+------------------------------------------------------------------------
+
+There are some columns in the data frame that are not needed for the analysis. Those columns are removed. I also removed the *ride_length* column as I created that column later using R which displayed the duration in seconds which is more easier for calculation than in minutes.
+
+```{r}
+Year_2022 <- Year_2022 %>%  
+  select(-c(start_lat, start_lng, end_lat, end_lng,ride_length))
+```
+
+------------------------------------------------------------------------
+
+An overview of the newly created data frame can be viewed by these following functions which displays the newly created data frame in different types.
+
+```{r}
+colnames(Year_2022)
+nrow(Year_2022)
+dim(Year_2022)
+head(Year_2022)
+str(Year_2022)
+summary(Year_2022)
+```
+
+------------------------------------------------------------------------
+
+The columns *started_at* and *ended_at* are in 'chr' format. To do the calculations and to calculate the *ride_length* they are changed to the 'date' format.
+
+```{r}
+Year_2022$started_at <- as.POSIXct(Year_2022$started_at, format="%m/%d/%Y %H:%M", tz="UTC")
+Year_2022$ended_at<- as.POSIXct(Year_2022$ended_at, format="%m/%d/%Y %H:%M", tz="UTC")
+```
+
+------------------------------------------------------------------------
+
+The data frame is checked for the column conversion
+
+```{r}
+tibble(Year_2022)
+```
+
+------------------------------------------------------------------------
+
+New columns like *month*,*date* and *ride_length*(indicates the duration of each ride) are created from the existing columns
+
+```{r}
+Year_2022 <- Year_2022 %>% 
+  mutate(month = format(as.Date(started_at), "%B")) %>% 
+  mutate(date = format(as.Date(started_at), "%d")) %>% 
+  mutate(ride_length = difftime(ended_at, started_at))
+```
+
+------------------------------------------------------------------------
+
+The column *ride_length* is converted to 'numeric' data type
+
+```{r}
+Year_2022 <- Year_2022 %>% 
+  mutate(ride_length = as.numeric(ride_length))
+
+is.numeric(Year_2022$ride_length)
+```
+
+------------------------------------------------------------------------
+
+The _ride_length_ cannot have zero or negative values. Also, generally a ride will at least take 1 minute. Therefore the rows that have duration of less than 60 seconds are removed.
+
+```{r}
+Year_2022 <- Year_2022[!(Year_2022$ride_length <= 0),]
+```
+
+------------------------------------------------------------------------
+
+### **Analyze**
+
+#### **Data Analysis using R**
+
+The cleaned data frame is now ready for analysis
+
+```{r}
+tibble(Year_2022)
+```
+
+------------------------------------------------------------------------
+
+The total number of casual rides and membership rides in the year 2022 was calculated.
+
+```{r}
+table(Year_2022$member_casual)
+```
+
+------------------------------------------------------------------------
+
+The minimum,maximum, median and average ride duration of casual riders and membership riders during the year 2022 was calculated in seconds
+
+```{r}
+Year_2022 %>%
+  group_by(member_casual) %>% 
+  summarise(average_ride_length = mean(ride_length), median_length = median(ride_length), 
+            max_ride_length = max(ride_length), min_ride_length = min(ride_length))
+```
+
+------------------------------------------------------------------------
+
+The average ride duration of a casual rider and a membership rider is calculated.
+
+```{r}
+Year_2022 %>% 
+  group_by(member_casual) %>% 
+  summarise(average_ride_length=mean(ride_length))
+```
+
+------------------------------------------------------------------------
+
+The *weekday* column is arranged based on the general week order
+
+```{r}
+Year_2022$weekday <- ordered(Year_2022$weekday,levels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+```
+
+------------------------------------------------------------------------
+
+The number of rides and the average ride duration of each customer type on each weekday was calculated and sorted according to the weekday order
+
+```{r}
+Year_2022 %>% 
+  group_by(member_casual, weekday) %>%  
+  summarise(number_of_rides = n()  
+            ,average_ride_length = mean(ride_length),.groups="drop") %>%
+  arrange(member_casual, weekday)
+```
+
+------------------------------------------------------------------------
+
+The *month* column is arranged based on the general month order
+
+```{r}
+
+Year_2022$month <- ordered(Year_2022$month, 
+                                levels=c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"))
+```
+
+------------------------------------------------------------------------
+
+The number of rides in each month is calculated.
+
+```{r}
+table(Year_2022$month)
+```
+
+------------------------------------------------------------------------
+
+The number of rides and the average ride duration of each customer type on each month was calculated and sorted according to the monthly order
+
+```{r}
+Year_2022 %>% 
+  group_by(member_casual, month) %>%  
+  summarise(number_of_rides = n(), average_ride_length = mean(ride_length), .groups="drop") %>% 
+  arrange(member_casual, month)
+```
+
+------------------------------------------------------------------------
+
+The type of bike used by each customer segment is calculated
+
+```{r}
+Year_2022 %>%
+  group_by(member_casual,rideable_type) %>%
+  summarise(number_of_rides=n()) %>%
+  arrange(member_casual)
+```
+
+------------------------------------------------------------------------
+
+The start stations with most number of casual rides is calculated and shown in descending order with the start station having most number of rides at first
+
+```{r}
+Year_2022 %>% 
+  group_by(start_station_name, member_casual) %>% 
+  filter(member_casual=="casual" & start_station_name!="") %>% 
+  summarise(number_of_rides=n()) %>% 
+  arrange(member_casual,desc(number_of_rides))
+```
+
+------------------------------------------------------------------------
+
+The start stations with most number of membership rides is calculated and shown in descending order with the start station having most number of rides at first
+
+```{r}
+Year_2022 %>% 
+  group_by(start_station_name, member_casual) %>% 
+  filter(member_casual=="member" & start_station_name!="") %>% 
+  summarise(number_of_rides=n()) %>% 
+  arrange(member_casual,desc(number_of_rides))
+```
+
+### **Share**
+
+#### **Data Visualizations using tableau**
+
+All the visualizations here are created using tableau public software.
+
+***
+
+The pie chart shows the casual rides vs annual rides in the year 2022
+
+```{r}
+knitr::include_graphics("C:/Users/ASUS/Downloads/Sheet 1.png")
+```
+
+From the pie chart, we can see that 40% of the total riders are casual riders, for whom we have to find a way to convert them to annual members.
+
+------------------------------------------------------------------------
+
+The following bar chart shows the type of bike used by both casual and annual riders
+
+```{r}
+knitr::include_graphics("C:/Users/ASUS/Downloads/Sheet 2 (1).png")
+```
+
+From the above bar chart, we can infer that classic bike is the most used bike type for member type. Annual members also highly use electric bikes,but no annual member uses docked bike. Most casual members use electric bike for ride purposes. Only a less number of casual riders uses docked bike type.
+
+------------------------------------------------------------------------
+
+The bar chart given below shows the number of rides on each week day by both the group of riders
+
+```{r}
+knitr::include_graphics("C:/Users/ASUS/Downloads/Sheet 3.png")
+```
+
+From the bar chart, it is seen that the casual rides are more on weekends, that is Saturday and Sunday. On the other hand membership rides increases during weekdays, reaches the peak during mid weekdays and decreases towards the weekends. Therefore the membership riders may use Cyclistic for work/education related purposes while casual members may have used it for leisure during weekends.
+
+------------------------------------------------------------------------
+
+The bar chart given below shows the number of rides on each month by both the group of riders
+
+```{r}
+knitr::include_graphics("C:/Users/ASUS/Downloads/Sheet 4.png")
+```
+
+The pattern for both rider type looks almost the same. The number of rides for casual riders starts with its extreme low on January and February, but then gradually increases and hits the peak at the month of July. Then it gradually decreases towards the year end. In case of annual members, the number of rides steadily increases with every month and hits the highest point on August and then decreases towards December. In general, Cyclistic has more number of rides between the months of June-September. Cyclistic also has low number of rides in the first and last two months.
+
+------------------------------------------------------------------------
+
+The following bar chart shows the number of casual rides started from each station in the year 2022
+
+```{r}
+knitr::include_graphics("C:/Users/ASUS/Downloads/Sheet 5(1).png")
+```
+
+The original image contains all the start stations' name with the number of rides. I cropped the original image to highlight the important insights from the image.
+
+Kingsbury St & Kinzie St is the most popular start station among casual riders, followed by Clark St & Elm St and Wells St and Concord Ln, each of which has over 20,000 casual rides in the year 2022.
+
+------------------------------------------------------------------------
+The following bar chart shows the number of membership rides started from each station in the year 2022
+```{r}
+knitr::include_graphics("C:/Users/ASUS/Downloads/Sheet 6(1).png")
+```
+From the bar chart, we can see that Streeter Dr & Grand Ave is the mostly used start station by annual members with more than 55,000+ rides. DuSable Lake Shore Dr & Monroe St has the next more membership rides, followed by the stations Millennium Park and Michigan Ave & Oak St.
+
+------------------------------------------------------------------------
+
+The bar chart shows the average ride duration of each rider type on each day of the week in seconds
+```{r}
+knitr::include_graphics("C:/Users/ASUS/Downloads/Sheet 7 (2).png")
+```
+
+From the bar chart, we can see that the average ride length of the members remains fairly consistent throughout the week except a little increase on the weekends. On the other hand, the average ride length of the casual riders is very high on weekends, then drops towards the midweek days and then increases towards the weekend.
+
+------------------------------------------------------------------------
+
+The bar chart shows the average ride length of each rider type during each month of the year in seconds
+
+```{r}
+knitr::include_graphics("C:/Users/ASUS/Downloads/Sheet 8 (1).png")
+```
+
+The average ride duration of annual members increases during the mid year, that is during the time of May-August. We can see a massive difference between the average ride duration of a casual rider and an annual member throughout the year. The average ride length of the casual riders is more in the first half of 2022 than the second half of 2022. The average ride length of casual riders hits the peak at the months of March and June.
+   
+   
+   
+#### **Dashboard**:
+
+All the sheets used for the analysis are integrated into a single dashboard which is shown below :
+
+```{r}
+knitr::include_graphics("C:/Users/ASUS/OneDrive/Pictures/Screenshots/Screenshot (25).png")
+```
+   
+   
+   
+All the worksheets and the dashboard used for the analysis can be seen [here](https://public.tableau.com/app/profile/jaison.jacob/viz/Cyclistic_case_study_16778427093000/Dashboard1)
+
+### **Act**
+
+#### **Few Recommendations**
+
+1.  More advertising campaigns should be organised in the top five start stations of the casual riders.
+
+2.  Saturday and Sunday has the most number of casual riders. So special marketing campaigns can be organized in weekends.
+
+3.  More attention should be given to marketing campaigns in the months of June to August where there are more casual rides than the rest of the year.
+
+4.  Special weekend and midyear memberships can be created for casual riders.
+         
+### **Conclusion**
+
+The main difference between casual rides and the annual rides is the average ride length which is more for the casual riders. Also casual riders uses Cyclistic mostly on weekends, while members use mostly on weekdays. Classic bike type is mostly preferred by members, whereas electric bike is the popular bike type among casual riders.
+     
+     
+     
+Thanks for reading. Please drop your valuable comments and suggestions.
+       
+       
+       
+       
+       
+#### Contact information : jaison4577@gmail.com
+
